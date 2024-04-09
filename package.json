@@ -6,8 +6,7 @@
   "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "nodemon ./api/server.js --ignore 'temp/'",
-    "build": "tsc"
+    "dev": "nodemon ./api/server.js --ignore 'temp/'"
   },
   "keywords": [],
   "author": "",
