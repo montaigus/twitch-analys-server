@@ -11,7 +11,6 @@ const server = await app.listen(port, () => {
 });
 
 const corsOptions = {
-  // origin:'https://abc.onrender.com',
   AccessControlAllowOrigin: "*",
   origin: "*",
   methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
