@@ -1,0 +1,4 @@
+{
+  "ignore": ["temp/"],
+  "watch": ["src"]
+}
