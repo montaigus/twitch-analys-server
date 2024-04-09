@@ -10,8 +10,13 @@ const server = await app.listen(port, () => {
   console.log(`Example app listening on port ${port}`);
 });
 
-app.use(cors());
-app.use(cors({ origin: "*" }));
+const corsOptions = {
+  // origin:'https://abc.onrender.com',
+  AccessControlAllowOrigin: "*",
+  origin: "*",
+  methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
+};
+app.use(cors(corsOptions));
 // Utilisation de body-parser pour analyser les corps des requêtes
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
