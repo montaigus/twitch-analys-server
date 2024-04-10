@@ -4,6 +4,7 @@ import bodyParser from "body-parser";
 import { ChatClient } from "@twurple/chat";
 import fs from "fs";
 import path from "path";
+import { tmpdir } from "os";
 
 const app = express();
 const port = 3000;
@@ -157,15 +158,12 @@ app.get("/download-json", (req, res) => {
 
   // Convertir les données en format JSON
   const jsonData = JSON.stringify(allData);
-
-  const tmpDir = path.join(process.cwd(), "tmp");
-
   // Vérifie si le dossier existe, s'il n'existe pas, le crée
-  if (!fs.existsSync(tmpDir)) {
-    fs.mkdirSync(tmpDir);
+  if (!fs.existsSync(tmpdir())) {
+    console.log("Création du dossier temporaire...");
   }
 
-  const filePath = path.join(tmpDir, "temp.json");
+  const filePath = path.join(tmpdir(), "temp.json");
 
   // Écrire le contenu JSON dans un fichier temporaire
   fs.writeFile(filePath, jsonData, (err) => {
