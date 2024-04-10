@@ -164,21 +164,21 @@ app.get("/download-json", (req, res) => {
     fs.mkdirSync(tmpDir);
   }
 
-  const fileUrl = "./tmp/temp.json";
+  const filePath = path.join(tmpDir, "temp.json");
 
   // Écrire le contenu JSON dans un fichier temporaire
-  fs.writeFile(fileUrl, jsonData, (err) => {
+  fs.writeFile(filePath, jsonData, (err) => {
     if (err) throw err;
 
     const date = new Date().toLocaleDateString().replaceAll("/", "_");
     const fileName = `msgData_${channel}_${date}.json`;
 
     // Envoyer le fichier au client en tant que téléchargement
-    res.download(fileUrl, fileName + ".json", (err) => {
+    res.download(filePath, fileName + ".json", (err) => {
       if (err) throw err;
 
       // Supprimer le fichier temporaire après le téléchargement
-      fs.unlink(fileUrl, (err) => {
+      fs.unlink(filePath, (err) => {
         if (err) throw err;
         console.log("Fichier temporaire supprimé.");
       });
