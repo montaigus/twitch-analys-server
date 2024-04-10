@@ -10,12 +10,12 @@ const server = await app.listen(port, () => {
   console.log(`Example app listening on port ${port}`);
 });
 
-const corsOptions = {
-  AccessControlAllowOrigin: "*",
-  origin: "*",
-  methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
-};
-app.use(cors(corsOptions));
+// const corsOptions = {
+//   AccessControlAllowOrigin: "*",
+//   origin: "*",
+//   methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
+// };
+app.use(cors());
 // Utilisation de body-parser pour analyser les corps des requêtes
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
@@ -28,10 +28,12 @@ app.get("/", (req, res) => {
 });
 
 app.get("/chat", (req, res) => {
+  res.header("Access-Control-Allow-Origin", "*");
   res.json(chatMsg);
 });
 
 app.get("/removed", (req, res) => {
+  res.header("Access-Control-Allow-Origin", "*");
   res.json(banMsg);
 });
 
