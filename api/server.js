@@ -138,7 +138,7 @@ app.post("/disconnect", async (req, res) => {
 app.get("/download-json", (req, res) => {
   // Données que vous souhaitez inclure dans le fichier JSON (par exemple, un tableau de données)
   const channel = req.query.channel;
-  if (!channel) res.status = 500;
+  if (!channel) res.status = 204;
 
   if (chatMsg.length === 0) {
     console.log("pas de message a télécharger");
@@ -156,6 +156,13 @@ app.get("/download-json", (req, res) => {
 
   // Convertir les données en format JSON
   const jsonData = JSON.stringify(allData);
+
+  const tmpDir = path.join(process.cwd(), "tmp");
+
+  // Vérifie si le dossier existe, s'il n'existe pas, le crée
+  if (!fs.existsSync(tmpDir)) {
+    fs.mkdirSync(tmpDir);
+  }
 
   const fileUrl = "./tmp/temp.json";
 
