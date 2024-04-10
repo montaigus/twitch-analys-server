@@ -142,7 +142,7 @@ app.get("/download-json", (req, res) => {
 
   if (chatMsg.length === 0) {
     console.log("pas de message a télécharger");
-    res.status = 500;
+    res.status = 204;
   }
 
   const onlyMsgData = chatMsg.map((msg) => msg.data);
@@ -157,7 +157,7 @@ app.get("/download-json", (req, res) => {
   // Convertir les données en format JSON
   const jsonData = JSON.stringify(allData);
 
-  const fileUrl = ".temp.json";
+  const fileUrl = "./tmp/temp.json";
 
   // Écrire le contenu JSON dans un fichier temporaire
   fs.writeFile(fileUrl, jsonData, (err) => {
