@@ -157,19 +157,21 @@ app.get("/download-json", (req, res) => {
   // Convertir les données en format JSON
   const jsonData = JSON.stringify(allData);
 
+  const fileUrl = ".temp.json";
+
   // Écrire le contenu JSON dans un fichier temporaire
-  fs.writeFile("./temp/temp.json", jsonData, (err) => {
+  fs.writeFile(fileUrl, jsonData, (err) => {
     if (err) throw err;
 
     const date = new Date().toLocaleDateString().replaceAll("/", "_");
     const fileName = `msgData_${channel}_${date}.json`;
 
     // Envoyer le fichier au client en tant que téléchargement
-    res.download("./temp/temp.json", fileName + ".json", (err) => {
+    res.download(fileUrl, fileName + ".json", (err) => {
       if (err) throw err;
 
       // Supprimer le fichier temporaire après le téléchargement
-      fs.unlink("./temp/temp.json", (err) => {
+      fs.unlink(fileUrl, (err) => {
         if (err) throw err;
         console.log("Fichier temporaire supprimé.");
       });
