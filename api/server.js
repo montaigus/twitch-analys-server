@@ -12,11 +12,6 @@ const server = await app.listen(port, () => {
   console.log(`Example app listening on port ${port}`);
 });
 
-// const corsOptions = {
-//   AccessControlAllowOrigin: "*",
-//   origin: "*",
-//   methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
-// };
 app.use(cors());
 // Utilisation de body-parser pour analyser les corps des requêtes
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -29,8 +24,12 @@ app.get("/", (req, res) => {
   res.send("Express on Vercel");
 });
 
+app.get("/allchat", (req, res) => {
+  const allChat = { chat: chatMsg, removed: banMsg };
+  res.json(allChat);
+});
+
 app.get("/chat", (req, res) => {
-  res.header("Access-Control-Allow-Origin", "*");
   res.json(chatMsg);
 });
 
@@ -39,17 +38,21 @@ app.get("/removed", (req, res) => {
   res.json(banMsg);
 });
 
-let allBots = [];
+app.get("/channels", (req, res) => {
+  const result = bot.currentChannels;
+  if (!result) {
+    res.json([]);
+  }
+  res.json(result);
+});
 
-async function connectChat(channel) {
-  console.log("======================= start main =======================");
-  const bot = new ChatClient({
-    channels: [channel],
-    readOnly: true,
-  });
+const bot = new ChatClient({
+  readOnly: true,
+});
 
+async function main() {
   await bot.connect();
-  console.log(`connecté au chat de ${channel} !`);
+  console.log("Bot connecté !");
 
   bot.onMessage((channel, user, message, msg) => {
     console.log(
@@ -65,18 +68,18 @@ async function connectChat(channel) {
       },
     });
   });
-
   bot.onBan((channel, user, msg) => {
     console.log(
       "\x1b[33m%s\x1b[0m",
       `Cet utilisateur a été ban : ${user}, pour le message suivant : ${msg}`
     );
   });
-
   bot.onMessageRemove((channel, messageId, msg) => {
-    const removedMsg = chatMsg.find((c) => {
-      c.data.id === messageId;
-    });
+    const removedMsg = chatMsg
+      .filter((c) => c.channel.toLowerCase() === channel.toLowerCase())
+      .find((c) => {
+        c.data.id === messageId;
+      });
     console.log("\x1b[31m%s\x1b[0m", "message banni " + removedMsg);
     banMsg.push({
       channel: channel,
@@ -88,31 +91,22 @@ async function connectChat(channel) {
     });
     if (msg.params) console.log("\x1b[32m%s\x1b[0m", msg.params);
   });
-
-  return bot;
 }
 
+main();
+
 app.post("/connect", async (req, res) => {
-  const channel = req.body.channel;
-  console.log(req.body);
-  const existingBot = allBots.find((bot) => bot.channel === channel);
-  if (existingBot) {
-    return res.send("already connected");
+  if (!bot) {
+    console.log("Bot non connecté");
+    res.status(500).send("Bot non connecté");
   }
-  allBots.forEach((bot) => {
-    bot.bot.quit();
-    console.log(`Bot déconnecté du canal ${bot.channel}`);
-  });
+
+  const channel = req.body.channel;
 
   try {
     // Connexion du nouveau bot
-    const bot = await connectChat(channel);
-    // Ajout du nouveau bot à allBots
-    allBots.push({
-      channel: channel,
-      bot: bot,
-    });
-    console.log(`Bot connecté au canal ${channel}`);
+    await bot.join(channel);
+    console.log(`connecté au chat de ${channel} !`);
     res.send("ok");
   } catch (error) {
     console.error("Erreur lors de la connexion du bot:", error);
@@ -124,36 +118,16 @@ app.post("/connect", async (req, res) => {
 
 app.post("/disconnect", async (req, res) => {
   const channel = req.body.channel;
-  const bot = allBots.find((bot) => bot.channel === channel);
-  if (!bot) {
-    return res.send("not connected");
-  }
-  bot.bot.quit();
-  chatMsg = chatMsg.filter((msg) => msg.channel !== channel);
-  allBots = allBots.filter((b) => b.channel !== channel);
+  bot.part(channel);
   console.log(`Bot déconnecté du canal ${channel}`);
-
   res.send("ok");
 });
 
 // Route pour générer et télécharger le fichier JSON
 app.get("/download-json", (req, res) => {
-  // Données que vous souhaitez inclure dans le fichier JSON (par exemple, un tableau de données)
-  const channel = req.query.channel;
-  if (!channel) res.status = 204;
-
-  if (chatMsg.length === 0) {
-    console.log("pas de message a télécharger");
-    res.status = 204;
-  }
-
-  const onlyMsgData = chatMsg.map((msg) => msg.data);
-  const onlyBanData = banMsg.map((msg) => msg.data);
-
   const allData = {
-    channel: channel,
-    allChat: onlyMsgData,
-    removedMsg: onlyBanData,
+    allChat: chatMsg,
+    removedMsg: banMsg,
   };
 
   // Convertir les données en format JSON
@@ -170,10 +144,10 @@ app.get("/download-json", (req, res) => {
     if (err) throw err;
 
     const date = new Date().toLocaleDateString().replaceAll("/", "_");
-    const fileName = `msgData_${channel}_${date}.json`;
+    const fileName = `msgData_${date}.json`;
 
     // Envoyer le fichier au client en tant que téléchargement
-    res.download(filePath, fileName + ".json", (err) => {
+    res.download(filePath, fileName, (err) => {
       if (err) throw err;
 
       // Supprimer le fichier temporaire après le téléchargement

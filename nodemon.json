@@ -1,4 +1,3 @@
 {
-  "ignore": ["temp/"],
-  "watch": ["src"]
+  "ignore": ["*.json"]
 }
