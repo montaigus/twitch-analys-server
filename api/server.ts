@@ -27,18 +27,8 @@ app.get("/", (req, res) => {
 });
 
 app.get("/allchat", (req, res) => {
-  //const allChat = { chat: chatMsg, removed: banMsg };
   res.json(allChats);
 });
-
-// app.get("/chat", (req, res) => {
-//   res.json(chatMsg);
-// });
-
-// app.get("/removed", (req, res) => {
-//   res.header("Access-Control-Allow-Origin", "*");
-//   res.json(banMsg);
-// });
 
 app.get("/channels", (req, res) => {
   const result = bot.currentChannels;
@@ -134,7 +124,11 @@ app.post("/connect", async (req, res) => {
     res.status(500).send("Bot non connecté");
   }
 
-  const channel = req.body.channel;
+  const channel: string = req.body.channel;
+
+  if (channel === "" || channel.substring(0, 1) === "_") {
+    res.status(400).send("Mauvaise chaine");
+  }
 
   try {
     // Connexion du nouveau bot
