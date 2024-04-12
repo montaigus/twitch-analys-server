@@ -5,7 +5,7 @@ import { ChatClient } from "@twurple/chat";
 import fs from "fs";
 import path from "path";
 import { tmpdir } from "os";
-import { channelAllMsg, storedMessage } from "./types.ts";
+import { channelAllMsg, storedMessage } from "./types";
 
 const app = express();
 const port = 3000;
