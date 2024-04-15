@@ -6,9 +6,13 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "tsx ./api/server.ts",
-    "build": "tsc",
-    "prebuild": "rimraf dist"
+    "build": "rimraf dist && tsc",
+    "add-build ": "git add dist"
   },
+  "pre-commit": [
+    "build",
+    "add-build"
+  ],
   "keywords": [],
   "author": "",
   "license": "ISC",
