@@ -31,7 +31,10 @@ app.get("/allchat", (req, res) => {
 });
 
 app.get("/channels", (req, res) => {
-  const result = bot.currentChannels;
+  const result: string[] = bot.currentChannels;
+  const channels = result.map((c) =>
+    c.substring(0, 1) === "#" ? c.substring(1) : c
+  );
   if (!result) {
     res.json([]);
   }
