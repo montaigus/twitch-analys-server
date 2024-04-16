@@ -29,9 +29,7 @@ app.use((0, cors_1.default)());
 // Utilisation de body-parser pour analyser les corps des requêtes
 app.use(body_parser_1.default.urlencoded({ extended: false }));
 app.use(body_parser_1.default.json());
-let chatMsg = [];
-let banMsg = [];
-const allChats = [];
+let allChats = [];
 app.get("/", (req, res) => {
     res.send("Express on Vercel");
 });
@@ -44,6 +42,7 @@ app.get("/channels", (req, res) => {
         res.json([]);
     }
     const channels = result.map((c) => c.substring(0, 1) === "#" ? c.substring(1) : c);
+    console.log(channels);
     res.json(channels);
 });
 const bot = new chat_1.ChatClient({
@@ -60,14 +59,6 @@ function main() {
             //si il trouve l'objet channel dans allChats, il push le nouveau message
             (_a = allChats
                 .find((c) => c.channel.toLowerCase() === channel.toLowerCase())) === null || _a === void 0 ? void 0 : _a.chatMsg.push(newMsg);
-            // chatMsg.push({
-            //   channel: channel,
-            //   data: {
-            //     id: msg.id,
-            //     user: user,
-            //     message: message,
-            //   },
-            // });
         });
         bot.onBan((channel, user, msg) => {
             console.log("\x1b[33m%s\x1b[0m", `Cet utilisateur a été ban : ${user}, pour le message suivant : ${msg}`);
@@ -82,24 +73,10 @@ function main() {
                 return;
             }
             const newRemovedMsg = new types_1.storedMessage(messageId, removedMsg.message || "", new Date(), removedMsg.user);
-            //chatMsg
-            //   .filter((c) => c.channel.toLowerCase() === channel.toLowerCase())
-            //   .find((c) => {
-            //     c.data.id === messageId;
-            //   });
             console.log("\x1b[31m%s\x1b[0m", "message banni " + removedMsg.message);
             //si il trouve l'objet channel dans allChats, il push le message banni
             (_b = allChats
                 .find((c) => c.channel.toLowerCase() === channel.toLowerCase())) === null || _b === void 0 ? void 0 : _b.removedMsg.push(newRemovedMsg);
-            // banMsg.push({
-            //   channel: channel,
-            //   data: {
-            //     id: messageId,
-            //     message: removedMsg || "",
-            //     date: new Date().toLocaleDateString(),
-            //   },
-            //});
-            //if (msg.params) console.log("\x1b[32m%s\x1b[0m", msg.params);
         });
     });
 }
@@ -117,7 +94,7 @@ app.post("/connect", (req, res) => __awaiter(void 0, void 0, void 0, function* (
         // Connexion du nouveau bot
         yield bot.join(channel);
         console.log(`connecté au chat de ${channel} !`);
-        allChats.push(new types_1.channelAllMsg(channel));
+        allChats.push(new types_1.channelAllMsg(channel.toLowerCase()));
         res.send("ok");
     }
     catch (error) {
@@ -127,18 +104,20 @@ app.post("/connect", (req, res) => __awaiter(void 0, void 0, void 0, function* (
             .send("Une erreur s'est produite lors de la connexion du bot");
     }
 }));
-app.post("/disconnect", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+app.post("/disconnect", (req, res) => {
     const channel = req.body.channel;
     bot.part(channel);
+    console.log(channel + "*");
+    console.log(allChats);
+    const index = allChats.findIndex((a) => {
+        a.channel.toLowerCase() === channel.toLowerCase();
+    });
+    console.log(index);
     console.log(`Bot déconnecté du canal ${channel}`);
     res.send("ok");
-}));
+});
 // Route pour générer et télécharger le fichier JSON
 app.get("/download-json", (req, res) => {
-    // const allData = {
-    //   allChat: chatMsg,
-    //   removedMsg: banMsg,
-    // };
     // Convertir les données en format JSON
     const jsonData = JSON.stringify(allChats);
     // Vérifie si le dossier existe, s'il n'existe pas, le crée

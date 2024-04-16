@@ -18,9 +18,7 @@ app.use(cors());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
-let chatMsg: any[] = [];
-let banMsg: any[] = [];
-const allChats: channelAllMsg[] = [];
+let allChats: channelAllMsg[] = [];
 
 app.get("/", (req, res) => {
   res.send("Express on Vercel");
@@ -38,6 +36,7 @@ app.get("/channels", (req, res) => {
   const channels = result.map((c) =>
     c.substring(0, 1) === "#" ? c.substring(1) : c
   );
+  console.log(channels);
   res.json(channels);
 });
 
@@ -61,15 +60,6 @@ async function main() {
     allChats
       .find((c) => c.channel.toLowerCase() === channel.toLowerCase())
       ?.chatMsg.push(newMsg);
-
-    // chatMsg.push({
-    //   channel: channel,
-    //   data: {
-    //     id: msg.id,
-    //     user: user,
-    //     message: message,
-    //   },
-    // });
   });
 
   bot.onBan((channel, user, msg) => {
@@ -94,11 +84,6 @@ async function main() {
       new Date(),
       removedMsg.user
     );
-    //chatMsg
-    //   .filter((c) => c.channel.toLowerCase() === channel.toLowerCase())
-    //   .find((c) => {
-    //     c.data.id === messageId;
-    //   });
 
     console.log("\x1b[31m%s\x1b[0m", "message banni " + removedMsg.message);
 
@@ -106,16 +91,6 @@ async function main() {
     allChats
       .find((c) => c.channel.toLowerCase() === channel.toLowerCase())
       ?.removedMsg.push(newRemovedMsg);
-
-    // banMsg.push({
-    //   channel: channel,
-    //   data: {
-    //     id: messageId,
-    //     message: removedMsg || "",
-    //     date: new Date().toLocaleDateString(),
-    //   },
-    //});
-    //if (msg.params) console.log("\x1b[32m%s\x1b[0m", msg.params);
   });
 }
 
@@ -137,7 +112,7 @@ app.post("/connect", async (req, res) => {
     // Connexion du nouveau bot
     await bot.join(channel);
     console.log(`connecté au chat de ${channel} !`);
-    allChats.push(new channelAllMsg(channel));
+    allChats.push(new channelAllMsg(channel.toLowerCase()));
     res.send("ok");
   } catch (error) {
     console.error("Erreur lors de la connexion du bot:", error);
@@ -147,20 +122,21 @@ app.post("/connect", async (req, res) => {
   }
 });
 
-app.post("/disconnect", async (req, res) => {
-  const channel = req.body.channel;
+app.post("/disconnect", (req, res) => {
+  const channel: string = req.body.channel;
   bot.part(channel);
+  console.log(channel + "*");
+  console.log(allChats);
+  const index = allChats.findIndex((a) => {
+    a.channel.toLowerCase() === channel.toLowerCase();
+  });
+  console.log(index);
   console.log(`Bot déconnecté du canal ${channel}`);
   res.send("ok");
 });
 
 // Route pour générer et télécharger le fichier JSON
 app.get("/download-json", (req, res) => {
-  // const allData = {
-  //   allChat: chatMsg,
-  //   removedMsg: banMsg,
-  // };
-
   // Convertir les données en format JSON
   const jsonData = JSON.stringify(allChats);
   // Vérifie si le dossier existe, s'il n'existe pas, le crée
