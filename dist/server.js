@@ -42,11 +42,73 @@ app.get("/channels", (req, res) => {
         res.json([]);
     }
     const channels = result.map((channel) => channel.substring(0, 1) === "#" ? channel.substring(1) : channel);
-    console.log(channels);
     res.json(channels);
 });
 const bot = new chat_1.ChatClient({
     readOnly: true,
+});
+app.post("/connect", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    if (!bot) {
+        console.log("Bot non connecté");
+        res.status(500).send("Bot non connecté");
+    }
+    const channel = req.body.channel;
+    if (channel === "" || channel.substring(0, 1) === "_") {
+        res.status(400).send("Mauvaise chaine");
+    }
+    try {
+        // Connexion du nouveau bot
+        yield bot.join(channel);
+        console.log(`connecté au chat de ${channel} !`);
+        allChats.push(new types_1.ChannelAllMsg(channel.toLowerCase()));
+        res.send("ok");
+    }
+    catch (error) {
+        console.error("Erreur lors de la connexion du bot:", error);
+        res
+            .status(500)
+            .send("Une erreur s'est produite lors de la connexion du bot");
+    }
+}));
+app.post("/disconnect", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const partedChannel = req.body.channel;
+    bot.part(partedChannel);
+    const index = allChats.findIndex((chat) => {
+        return chat.channel === partedChannel;
+    });
+    if (index >= 0) {
+        allChats.splice(index);
+    }
+    console.log(`Bot déconnecté du canal ${partedChannel}`);
+    res.send("ok");
+}));
+// Route pour générer et télécharger le fichier JSON
+app.get("/download-json", (req, res) => {
+    // Convertir les données en format JSON
+    const jsonData = JSON.stringify(allChats);
+    // Vérifie si le dossier existe, s'il n'existe pas, le crée
+    if (!fs_1.default.existsSync((0, os_1.tmpdir)())) {
+        console.log("Création du dossier temporaire...");
+    }
+    const filePath = path_1.default.join((0, os_1.tmpdir)(), "temp.json");
+    // Écrire le contenu JSON dans un fichier temporaire
+    fs_1.default.writeFile(filePath, jsonData, (err) => {
+        if (err)
+            throw err;
+        const date = new Date().toLocaleDateString().split("/").join("_");
+        const fileName = `msgData_${date}.json`;
+        // Envoyer le fichier au client en tant que téléchargement
+        res.download(filePath, fileName, (err) => {
+            if (err)
+                throw err;
+            // Supprimer le fichier temporaire après le téléchargement
+            fs_1.default.unlink(filePath, (err) => {
+                if (err)
+                    throw err;
+                console.log("Fichier temporaire supprimé.");
+            });
+        });
+    });
 });
 function main() {
     return __awaiter(this, void 0, void 0, function* () {
@@ -81,68 +143,5 @@ function main() {
     });
 }
 main();
-app.post("/connect", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    if (!bot) {
-        console.log("Bot non connecté");
-        res.status(500).send("Bot non connecté");
-    }
-    const channel = req.body.channel;
-    if (channel === "" || channel.substring(0, 1) === "_") {
-        res.status(400).send("Mauvaise chaine");
-    }
-    try {
-        // Connexion du nouveau bot
-        yield bot.join(channel);
-        console.log(`connecté au chat de ${channel} !`);
-        allChats.push(new types_1.ChannelAllMsg(channel.toLowerCase()));
-        res.send("ok");
-    }
-    catch (error) {
-        console.error("Erreur lors de la connexion du bot:", error);
-        res
-            .status(500)
-            .send("Une erreur s'est produite lors de la connexion du bot");
-    }
-}));
-app.post("/disconnect", (req, res) => {
-    const channel = req.body.channel;
-    bot.part(channel);
-    console.log(channel + "*");
-    console.log(allChats);
-    const index = allChats.findIndex((a) => {
-        a.channel.toLowerCase() === channel.toLowerCase();
-    });
-    console.log(index);
-    console.log(`Bot déconnecté du canal ${channel}`);
-    res.send("ok");
-});
-// Route pour générer et télécharger le fichier JSON
-app.get("/download-json", (req, res) => {
-    // Convertir les données en format JSON
-    const jsonData = JSON.stringify(allChats);
-    // Vérifie si le dossier existe, s'il n'existe pas, le crée
-    if (!fs_1.default.existsSync((0, os_1.tmpdir)())) {
-        console.log("Création du dossier temporaire...");
-    }
-    const filePath = path_1.default.join((0, os_1.tmpdir)(), "temp.json");
-    // Écrire le contenu JSON dans un fichier temporaire
-    fs_1.default.writeFile(filePath, jsonData, (err) => {
-        if (err)
-            throw err;
-        const date = new Date().toLocaleDateString().split("/").join("_");
-        const fileName = `msgData_${date}.json`;
-        // Envoyer le fichier au client en tant que téléchargement
-        res.download(filePath, fileName, (err) => {
-            if (err)
-                throw err;
-            // Supprimer le fichier temporaire après le téléchargement
-            fs_1.default.unlink(filePath, (err) => {
-                if (err)
-                    throw err;
-                console.log("Fichier temporaire supprimé.");
-            });
-        });
-    });
-});
 //module.exports = app;
 //# sourceMappingURL=server.js.map

@@ -36,12 +36,82 @@ app.get("/channels", (req, res) => {
   const channels = result.map((channel) =>
     channel.substring(0, 1) === "#" ? channel.substring(1) : channel
   );
-  console.log(channels);
   res.json(channels);
 });
 
 const bot = new ChatClient({
   readOnly: true,
+});
+
+app.post("/connect", async (req, res) => {
+  if (!bot) {
+    console.log("Bot non connecté");
+    res.status(500).send("Bot non connecté");
+  }
+
+  const channel: string = req.body.channel;
+
+  if (channel === "" || channel.substring(0, 1) === "_") {
+    res.status(400).send("Mauvaise chaine");
+  }
+
+  try {
+    // Connexion du nouveau bot
+    await bot.join(channel);
+    console.log(`connecté au chat de ${channel} !`);
+    allChats.push(new ChannelAllMsg(channel.toLowerCase()));
+    res.send("ok");
+  } catch (error) {
+    console.error("Erreur lors de la connexion du bot:", error);
+    res
+      .status(500)
+      .send("Une erreur s'est produite lors de la connexion du bot");
+  }
+});
+
+app.post("/disconnect", async (req, res) => {
+  const partedChannel: string = req.body.channel;
+  bot.part(partedChannel);
+
+  const index = allChats.findIndex((chat) => {
+    return chat.channel === partedChannel;
+  });
+  if (index >= 0) {
+    allChats.splice(index);
+  }
+  console.log(`Bot déconnecté du canal ${partedChannel}`);
+  res.send("ok");
+});
+
+// Route pour générer et télécharger le fichier JSON
+app.get("/download-json", (req, res) => {
+  // Convertir les données en format JSON
+  const jsonData = JSON.stringify(allChats);
+  // Vérifie si le dossier existe, s'il n'existe pas, le crée
+  if (!fs.existsSync(tmpdir())) {
+    console.log("Création du dossier temporaire...");
+  }
+
+  const filePath = path.join(tmpdir(), "temp.json");
+
+  // Écrire le contenu JSON dans un fichier temporaire
+  fs.writeFile(filePath, jsonData, (err) => {
+    if (err) throw err;
+
+    const date = new Date().toLocaleDateString().split("/").join("_");
+    const fileName = `msgData_${date}.json`;
+
+    // Envoyer le fichier au client en tant que téléchargement
+    res.download(filePath, fileName, (err) => {
+      if (err) throw err;
+
+      // Supprimer le fichier temporaire après le téléchargement
+      fs.unlink(filePath, (err) => {
+        if (err) throw err;
+        console.log("Fichier temporaire supprimé.");
+      });
+    });
+  });
 });
 
 async function main() {
@@ -93,77 +163,5 @@ async function main() {
       ?.removedMsg.push(newRemovedMsg);
   });
 }
-
 main();
-
-app.post("/connect", async (req, res) => {
-  if (!bot) {
-    console.log("Bot non connecté");
-    res.status(500).send("Bot non connecté");
-  }
-
-  const channel: string = req.body.channel;
-
-  if (channel === "" || channel.substring(0, 1) === "_") {
-    res.status(400).send("Mauvaise chaine");
-  }
-
-  try {
-    // Connexion du nouveau bot
-    await bot.join(channel);
-    console.log(`connecté au chat de ${channel} !`);
-    allChats.push(new ChannelAllMsg(channel.toLowerCase()));
-    res.send("ok");
-  } catch (error) {
-    console.error("Erreur lors de la connexion du bot:", error);
-    res
-      .status(500)
-      .send("Une erreur s'est produite lors de la connexion du bot");
-  }
-});
-
-app.post("/disconnect", (req, res) => {
-  const channel: string = req.body.channel;
-  bot.part(channel);
-  console.log(channel + "*");
-  console.log(allChats);
-  const index = allChats.findIndex((a) => {
-    a.channel.toLowerCase() === channel.toLowerCase();
-  });
-  console.log(index);
-  console.log(`Bot déconnecté du canal ${channel}`);
-  res.send("ok");
-});
-
-// Route pour générer et télécharger le fichier JSON
-app.get("/download-json", (req, res) => {
-  // Convertir les données en format JSON
-  const jsonData = JSON.stringify(allChats);
-  // Vérifie si le dossier existe, s'il n'existe pas, le crée
-  if (!fs.existsSync(tmpdir())) {
-    console.log("Création du dossier temporaire...");
-  }
-
-  const filePath = path.join(tmpdir(), "temp.json");
-
-  // Écrire le contenu JSON dans un fichier temporaire
-  fs.writeFile(filePath, jsonData, (err) => {
-    if (err) throw err;
-
-    const date = new Date().toLocaleDateString().split("/").join("_");
-    const fileName = `msgData_${date}.json`;
-
-    // Envoyer le fichier au client en tant que téléchargement
-    res.download(filePath, fileName, (err) => {
-      if (err) throw err;
-
-      // Supprimer le fichier temporaire après le téléchargement
-      fs.unlink(filePath, (err) => {
-        if (err) throw err;
-        console.log("Fichier temporaire supprimé.");
-      });
-    });
-  });
-});
-
 //module.exports = app;
