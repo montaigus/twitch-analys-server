@@ -29,9 +29,7 @@ app.use((0, cors_1.default)());
 // Utilisation de body-parser pour analyser les corps des requêtes
 app.use(body_parser_1.default.urlencoded({ extended: false }));
 app.use(body_parser_1.default.json());
-let chatMsg = [];
-let banMsg = [];
-const allChats = [];
+let allChats = [];
 app.get("/", (req, res) => {
     res.send("Express on Vercel");
 });
@@ -44,6 +42,7 @@ app.get("/channels", (req, res) => {
         res.json([]);
     }
     const channels = result.map((channel) => channel.substring(0, 1) === "#" ? channel.substring(1) : channel);
+    console.log(channels);
     res.json(channels);
 });
 const bot = new chat_1.ChatClient({
@@ -95,7 +94,7 @@ app.post("/connect", (req, res) => __awaiter(void 0, void 0, void 0, function* (
         // Connexion du nouveau bot
         yield bot.join(channel);
         console.log(`connecté au chat de ${channel} !`);
-        allChats.push(new types_1.ChannelAllMsg(channel));
+        allChats.push(new types_1.ChannelAllMsg(channel.toLowerCase()));
         res.send("ok");
     }
     catch (error) {
@@ -105,12 +104,18 @@ app.post("/connect", (req, res) => __awaiter(void 0, void 0, void 0, function* (
             .send("Une erreur s'est produite lors de la connexion du bot");
     }
 }));
-app.post("/disconnect", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+app.post("/disconnect", (req, res) => {
     const channel = req.body.channel;
     bot.part(channel);
+    console.log(channel + "*");
+    console.log(allChats);
+    const index = allChats.findIndex((a) => {
+        a.channel.toLowerCase() === channel.toLowerCase();
+    });
+    console.log(index);
     console.log(`Bot déconnecté du canal ${channel}`);
     res.send("ok");
-}));
+});
 // Route pour générer et télécharger le fichier JSON
 app.get("/download-json", (req, res) => {
     // Convertir les données en format JSON

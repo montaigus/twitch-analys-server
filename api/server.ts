@@ -18,9 +18,7 @@ app.use(cors());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
-let chatMsg: any[] = [];
-let banMsg: any[] = [];
-const allChats: ChannelAllMsg[] = [];
+let allChats: ChannelAllMsg[] = [];
 
 app.get("/", (req, res) => {
   res.send("Express on Vercel");
@@ -38,6 +36,7 @@ app.get("/channels", (req, res) => {
   const channels = result.map((channel) =>
     channel.substring(0, 1) === "#" ? channel.substring(1) : channel
   );
+  console.log(channels);
   res.json(channels);
 });
 
@@ -113,7 +112,7 @@ app.post("/connect", async (req, res) => {
     // Connexion du nouveau bot
     await bot.join(channel);
     console.log(`connecté au chat de ${channel} !`);
-    allChats.push(new ChannelAllMsg(channel));
+    allChats.push(new ChannelAllMsg(channel.toLowerCase()));
     res.send("ok");
   } catch (error) {
     console.error("Erreur lors de la connexion du bot:", error);
@@ -123,9 +122,15 @@ app.post("/connect", async (req, res) => {
   }
 });
 
-app.post("/disconnect", async (req, res) => {
-  const channel = req.body.channel;
+app.post("/disconnect", (req, res) => {
+  const channel: string = req.body.channel;
   bot.part(channel);
+  console.log(channel + "*");
+  console.log(allChats);
+  const index = allChats.findIndex((a) => {
+    a.channel.toLowerCase() === channel.toLowerCase();
+  });
+  console.log(index);
   console.log(`Bot déconnecté du canal ${channel}`);
   res.send("ok");
 });
