@@ -5,7 +5,7 @@ import { ChatClient } from "@twurple/chat";
 import fs from "fs";
 import path from "path";
 import { tmpdir } from "os";
-import { channelAllMsg, storedMessage } from "./types";
+import { ChannelAllMsg, StoredMessage } from "./types";
 
 const app = express();
 const port = 3000;
@@ -20,7 +20,7 @@ app.use(bodyParser.json());
 
 let chatMsg: any[] = [];
 let banMsg: any[] = [];
-const allChats: channelAllMsg[] = [];
+const allChats: ChannelAllMsg[] = [];
 
 app.get("/", (req, res) => {
   res.send("Express on Vercel");
@@ -35,8 +35,8 @@ app.get("/channels", (req, res) => {
   if (!result) {
     res.json([]);
   }
-  const channels = result.map((c) =>
-    c.substring(0, 1) === "#" ? c.substring(1) : c
+  const channels = result.map((channel) =>
+    channel.substring(0, 1) === "#" ? channel.substring(1) : channel
   );
   res.json(channels);
 });
@@ -55,21 +55,12 @@ async function main() {
       `${channel} : Nouveau message de ${user}: ${message}`
     );
 
-    const newMsg = new storedMessage(msg.id, message, new Date(), user);
+    const newMsg = new StoredMessage(msg.id, message, new Date(), user);
 
     //si il trouve l'objet channel dans allChats, il push le nouveau message
     allChats
-      .find((c) => c.channel.toLowerCase() === channel.toLowerCase())
+      .find((chat) => chat.channel.toLowerCase() === channel.toLowerCase())
       ?.chatMsg.push(newMsg);
-
-    // chatMsg.push({
-    //   channel: channel,
-    //   data: {
-    //     id: msg.id,
-    //     user: user,
-    //     message: message,
-    //   },
-    // });
   });
 
   bot.onBan((channel, user, msg) => {
@@ -81,41 +72,26 @@ async function main() {
 
   bot.onMessageRemove((channel, messageId, msg) => {
     let removedMsg = allChats
-      .find((c) => c.channel.toLowerCase() === channel.toLowerCase())
-      ?.chatMsg.find((c) => c.id === messageId);
+      .find((chat) => chat.channel.toLowerCase() === channel.toLowerCase())
+      ?.chatMsg.find((msg) => msg.id === messageId);
     if (!removedMsg) {
       console.log("Message non trouvé");
-      removedMsg = new storedMessage(messageId, "", new Date(), "");
+      removedMsg = new StoredMessage(messageId, "", new Date(), "");
       return;
     }
-    const newRemovedMsg = new storedMessage(
+    const newRemovedMsg = new StoredMessage(
       messageId,
       removedMsg.message || "",
       new Date(),
       removedMsg.user
     );
-    //chatMsg
-    //   .filter((c) => c.channel.toLowerCase() === channel.toLowerCase())
-    //   .find((c) => {
-    //     c.data.id === messageId;
-    //   });
 
     console.log("\x1b[31m%s\x1b[0m", "message banni " + removedMsg.message);
 
     //si il trouve l'objet channel dans allChats, il push le message banni
     allChats
-      .find((c) => c.channel.toLowerCase() === channel.toLowerCase())
+      .find((chat) => chat.channel.toLowerCase() === channel.toLowerCase())
       ?.removedMsg.push(newRemovedMsg);
-
-    // banMsg.push({
-    //   channel: channel,
-    //   data: {
-    //     id: messageId,
-    //     message: removedMsg || "",
-    //     date: new Date().toLocaleDateString(),
-    //   },
-    //});
-    //if (msg.params) console.log("\x1b[32m%s\x1b[0m", msg.params);
   });
 }
 
@@ -137,7 +113,7 @@ app.post("/connect", async (req, res) => {
     // Connexion du nouveau bot
     await bot.join(channel);
     console.log(`connecté au chat de ${channel} !`);
-    allChats.push(new channelAllMsg(channel));
+    allChats.push(new ChannelAllMsg(channel));
     res.send("ok");
   } catch (error) {
     console.error("Erreur lors de la connexion du bot:", error);
@@ -156,11 +132,6 @@ app.post("/disconnect", async (req, res) => {
 
 // Route pour générer et télécharger le fichier JSON
 app.get("/download-json", (req, res) => {
-  // const allData = {
-  //   allChat: chatMsg,
-  //   removedMsg: banMsg,
-  // };
-
   // Convertir les données en format JSON
   const jsonData = JSON.stringify(allChats);
   // Vérifie si le dossier existe, s'il n'existe pas, le crée

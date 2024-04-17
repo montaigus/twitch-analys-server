@@ -1,4 +1,4 @@
-export class storedMessage {
+export class StoredMessage {
   id: string;
   message: string;
   date: Date;
@@ -12,10 +12,10 @@ export class storedMessage {
   }
 }
 
-export class channelAllMsg {
+export class ChannelAllMsg {
   channel: string;
-  chatMsg: storedMessage[];
-  removedMsg: storedMessage[];
+  chatMsg: StoredMessage[];
+  removedMsg: StoredMessage[];
 
   constructor(channel: string) {
     this.channel = channel;

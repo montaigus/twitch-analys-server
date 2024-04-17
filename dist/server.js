@@ -43,7 +43,7 @@ app.get("/channels", (req, res) => {
     if (!result) {
         res.json([]);
     }
-    const channels = result.map((c) => c.substring(0, 1) === "#" ? c.substring(1) : c);
+    const channels = result.map((channel) => channel.substring(0, 1) === "#" ? channel.substring(1) : channel);
     res.json(channels);
 });
 const bot = new chat_1.ChatClient({
@@ -56,18 +56,10 @@ function main() {
         bot.onMessage((channel, user, message, msg) => {
             var _a;
             console.log("\x1b[36m%s\x1b[0m", `${channel} : Nouveau message de ${user}: ${message}`);
-            const newMsg = new types_1.storedMessage(msg.id, message, new Date(), user);
+            const newMsg = new types_1.StoredMessage(msg.id, message, new Date(), user);
             //si il trouve l'objet channel dans allChats, il push le nouveau message
             (_a = allChats
-                .find((c) => c.channel.toLowerCase() === channel.toLowerCase())) === null || _a === void 0 ? void 0 : _a.chatMsg.push(newMsg);
-            // chatMsg.push({
-            //   channel: channel,
-            //   data: {
-            //     id: msg.id,
-            //     user: user,
-            //     message: message,
-            //   },
-            // });
+                .find((chat) => chat.channel.toLowerCase() === channel.toLowerCase())) === null || _a === void 0 ? void 0 : _a.chatMsg.push(newMsg);
         });
         bot.onBan((channel, user, msg) => {
             console.log("\x1b[33m%s\x1b[0m", `Cet utilisateur a été ban : ${user}, pour le message suivant : ${msg}`);
@@ -75,31 +67,17 @@ function main() {
         bot.onMessageRemove((channel, messageId, msg) => {
             var _a, _b;
             let removedMsg = (_a = allChats
-                .find((c) => c.channel.toLowerCase() === channel.toLowerCase())) === null || _a === void 0 ? void 0 : _a.chatMsg.find((c) => c.id === messageId);
+                .find((chat) => chat.channel.toLowerCase() === channel.toLowerCase())) === null || _a === void 0 ? void 0 : _a.chatMsg.find((msg) => msg.id === messageId);
             if (!removedMsg) {
                 console.log("Message non trouvé");
-                removedMsg = new types_1.storedMessage(messageId, "", new Date(), "");
+                removedMsg = new types_1.StoredMessage(messageId, "", new Date(), "");
                 return;
             }
-            const newRemovedMsg = new types_1.storedMessage(messageId, removedMsg.message || "", new Date(), removedMsg.user);
-            //chatMsg
-            //   .filter((c) => c.channel.toLowerCase() === channel.toLowerCase())
-            //   .find((c) => {
-            //     c.data.id === messageId;
-            //   });
+            const newRemovedMsg = new types_1.StoredMessage(messageId, removedMsg.message || "", new Date(), removedMsg.user);
             console.log("\x1b[31m%s\x1b[0m", "message banni " + removedMsg.message);
             //si il trouve l'objet channel dans allChats, il push le message banni
             (_b = allChats
-                .find((c) => c.channel.toLowerCase() === channel.toLowerCase())) === null || _b === void 0 ? void 0 : _b.removedMsg.push(newRemovedMsg);
-            // banMsg.push({
-            //   channel: channel,
-            //   data: {
-            //     id: messageId,
-            //     message: removedMsg || "",
-            //     date: new Date().toLocaleDateString(),
-            //   },
-            //});
-            //if (msg.params) console.log("\x1b[32m%s\x1b[0m", msg.params);
+                .find((chat) => chat.channel.toLowerCase() === channel.toLowerCase())) === null || _b === void 0 ? void 0 : _b.removedMsg.push(newRemovedMsg);
         });
     });
 }
@@ -117,7 +95,7 @@ app.post("/connect", (req, res) => __awaiter(void 0, void 0, void 0, function* (
         // Connexion du nouveau bot
         yield bot.join(channel);
         console.log(`connecté au chat de ${channel} !`);
-        allChats.push(new types_1.channelAllMsg(channel));
+        allChats.push(new types_1.ChannelAllMsg(channel));
         res.send("ok");
     }
     catch (error) {
@@ -135,10 +113,6 @@ app.post("/disconnect", (req, res) => __awaiter(void 0, void 0, void 0, function
 }));
 // Route pour générer et télécharger le fichier JSON
 app.get("/download-json", (req, res) => {
-    // const allData = {
-    //   allChat: chatMsg,
-    //   removedMsg: banMsg,
-    // };
     // Convertir les données en format JSON
     const jsonData = JSON.stringify(allChats);
     // Vérifie si le dossier existe, s'il n'existe pas, le crée
