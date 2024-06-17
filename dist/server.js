@@ -60,7 +60,7 @@ app.post("/connect", (req, res) => __awaiter(void 0, void 0, void 0, function* (
         // Connexion du nouveau bot
         yield bot.join(channel);
         console.log(`connecté au chat de ${channel} !`);
-        allChats.push(new types_1.ChannelAllMsg(channel.toLowerCase()));
+        allChats.push(new types_1.ChannelDatas(channel.toLowerCase()));
         res.send("ok");
     }
     catch (error) {
@@ -123,6 +123,9 @@ function main() {
                 .find((chat) => chat.channel.toLowerCase() === channel.toLowerCase())) === null || _a === void 0 ? void 0 : _a.chatMsg.push(newMsg);
         });
         bot.onBan((channel, user, msg) => {
+            var _a;
+            (_a = allChats
+                .find((chat) => chat.channel.toLowerCase() === channel.toLowerCase())) === null || _a === void 0 ? void 0 : _a.banUsers.push(user);
             console.log("\x1b[33m%s\x1b[0m", `Cet utilisateur a été ban : ${user}, pour le message suivant : ${msg}`);
         });
         bot.onMessageRemove((channel, messageId, msg) => {

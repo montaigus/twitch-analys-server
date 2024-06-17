@@ -5,7 +5,7 @@ import { ChatClient } from "@twurple/chat";
 import fs from "fs";
 import path from "path";
 import { tmpdir } from "os";
-import { ChannelAllMsg, StoredMessage } from "./types";
+import { ChannelDatas, StoredMessage } from "./types";
 
 const app = express();
 const port = 3000;
@@ -18,7 +18,7 @@ app.use(cors());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
-let allChats: ChannelAllMsg[] = [];
+let allChats: ChannelDatas[] = [];
 
 app.get("/", (req, res) => {
   res.send("Express on Vercel");
@@ -59,7 +59,7 @@ app.post("/connect", async (req, res) => {
     // Connexion du nouveau bot
     await bot.join(channel);
     console.log(`connecté au chat de ${channel} !`);
-    allChats.push(new ChannelAllMsg(channel.toLowerCase()));
+    allChats.push(new ChannelDatas(channel.toLowerCase()));
     res.send("ok");
   } catch (error) {
     console.error("Erreur lors de la connexion du bot:", error);
@@ -133,6 +133,9 @@ async function main() {
   });
 
   bot.onBan((channel, user, msg) => {
+    allChats
+      .find((chat) => chat.channel.toLowerCase() === channel.toLowerCase())
+      ?.banUsers.push(user);
     console.log(
       "\x1b[33m%s\x1b[0m",
       `Cet utilisateur a été ban : ${user}, pour le message suivant : ${msg}`
