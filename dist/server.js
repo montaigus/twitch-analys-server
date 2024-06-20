@@ -20,6 +20,9 @@ const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
 const os_1 = require("os");
 const types_1 = require("./types");
+const auth_1 = require("@twurple/auth");
+const api_1 = require("@twurple/api");
+const dotenv_1 = require("dotenv");
 const app = (0, express_1.default)();
 const port = 3000;
 const server = app.listen(port, () => {
@@ -47,6 +50,46 @@ app.get("/channels", (req, res) => {
 const bot = new chat_1.ChatClient({
     readOnly: true,
 });
+//getting the token
+(0, dotenv_1.configDotenv)();
+const clientId = process.env.CLIENTID;
+const clientSecret = process.env.CLIENTSECRET;
+const authProvider = new auth_1.AppTokenAuthProvider(clientId, clientSecret);
+const api = new api_1.ApiClient({ authProvider });
+function logChannelInfo(channelName) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const userObject = yield api.users.getUserByName(channelName);
+        const channelInfo = yield api.channels.getChannelInfoById(userObject);
+        const stream = yield api.streams.getStreamByUserName(userObject);
+        const badges = yield api.chat.getChannelBadges(userObject);
+        console.log("channel info :");
+        console.log(channelInfo.delay);
+        console.log(channelInfo.name);
+        console.log(channelInfo.title);
+        console.log("stream info :");
+        console.log(stream.startDate);
+        console.log(stream.tags);
+        console.log(stream.title);
+        console.log(stream.type);
+        console.log(stream.viewers);
+        console.log("badges :");
+        console.log(badges.length);
+        console.log(badges.reduce((a, b) => {
+            const allVersion = b.versions.reduce((c, d) => {
+                const info = {
+                    action: d.clickAction,
+                    url: d.clickUrl,
+                    descr: d.description,
+                    title: d.title,
+                };
+                Object.assign(c, info);
+                return c;
+            }, {});
+            Object.assign(a, allVersion);
+            return a;
+        }, {}));
+    });
+}
 app.post("/connect", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     if (!bot) {
         console.log("Bot non connecté");
@@ -59,6 +102,7 @@ app.post("/connect", (req, res) => __awaiter(void 0, void 0, void 0, function* (
     try {
         // Connexion du nouveau bot
         yield bot.join(channel);
+        logChannelInfo(channel);
         console.log(`connecté au chat de ${channel} !`);
         allChats.push(new types_1.ChannelDatas(channel.toLowerCase()));
         res.send("ok");

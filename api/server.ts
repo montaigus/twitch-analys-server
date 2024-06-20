@@ -6,6 +6,9 @@ import fs from "fs";
 import path from "path";
 import { tmpdir } from "os";
 import { ChannelDatas, StoredMessage } from "./types";
+import { AuthProvider, AppTokenAuthProvider } from "@twurple/auth";
+import { ApiClient } from "@twurple/api";
+import { config, configDotenv } from "dotenv";
 
 const app = express();
 const port = 3000;
@@ -43,6 +46,49 @@ const bot = new ChatClient({
   readOnly: true,
 });
 
+//getting the token
+configDotenv();
+
+const clientId = process.env.CLIENTID;
+const clientSecret = process.env.CLIENTSECRET;
+
+const authProvider = new AppTokenAuthProvider(clientId, clientSecret);
+const api = new ApiClient({ authProvider });
+async function logChannelInfo(channelName: string) {
+  const userObject = await api.users.getUserByName(channelName);
+  const channelInfo = await api.channels.getChannelInfoById(userObject);
+  const stream = await api.streams.getStreamByUserName(userObject);
+  const badges = await api.chat.getChannelBadges(userObject);
+  console.log("channel info :");
+  console.log(channelInfo.delay);
+  console.log(channelInfo.name);
+  console.log(channelInfo.title);
+  console.log("stream info :");
+  console.log(stream.startDate);
+  console.log(stream.tags);
+  console.log(stream.title);
+  console.log(stream.type);
+  console.log(stream.viewers);
+  console.log("badges :");
+  console.log(badges.length);
+  console.log(
+    badges.reduce((a, b) => {
+      const allVersion = b.versions.reduce((c, d) => {
+        const info = {
+          action: d.clickAction,
+          url: d.clickUrl,
+          descr: d.description,
+          title: d.title,
+        };
+        Object.assign(c, info);
+        return c;
+      }, {});
+      Object.assign(a, allVersion);
+      return a;
+    }, {})
+  );
+}
+
 app.post("/connect", async (req, res) => {
   if (!bot) {
     console.log("Bot non connecté");
@@ -58,6 +104,7 @@ app.post("/connect", async (req, res) => {
   try {
     // Connexion du nouveau bot
     await bot.join(channel);
+    logChannelInfo(channel);
     console.log(`connecté au chat de ${channel} !`);
     allChats.push(new ChannelDatas(channel.toLowerCase()));
     res.send("ok");
