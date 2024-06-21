@@ -17,18 +17,19 @@ export class StreamInfo {
   id: string;
   title: string;
   type: string;
-  startDate: Date;
+  startDate?: Date;
 }
 
 export class ChannelDatas {
   channel: string;
-  stramInfo: StreamInfo;
+  streamInfo: StreamInfo;
   chatMsg: StoredMessage[];
   removedMsg: StoredMessage[];
   banUsers: string[];
 
-  constructor(channel: string) {
+  constructor(channel: string, streamInfos?: StreamInfo) {
     this.channel = channel;
+    this.streamInfo = streamInfos;
     this.chatMsg = [];
     this.removedMsg = [];
     this.banUsers = [];

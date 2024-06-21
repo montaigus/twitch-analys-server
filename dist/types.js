@@ -14,8 +14,9 @@ class StreamInfo {
 }
 exports.StreamInfo = StreamInfo;
 class ChannelDatas {
-    constructor(channel) {
+    constructor(channel, streamInfos) {
         this.channel = channel;
+        this.streamInfo = streamInfos;
         this.chatMsg = [];
         this.removedMsg = [];
         this.banUsers = [];

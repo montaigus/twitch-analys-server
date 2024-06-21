@@ -5,10 +5,12 @@ import { ChatClient } from "@twurple/chat";
 import fs from "fs";
 import path from "path";
 import { tmpdir } from "os";
-import { ChannelDatas, StoredMessage } from "./types";
+import { ChannelDatas, StoredMessage, StreamInfo } from "./types";
 import { AuthProvider, AppTokenAuthProvider } from "@twurple/auth";
 import { ApiClient } from "@twurple/api";
 import { config, configDotenv } from "dotenv";
+import { EventSubHttpListener } from "@twurple/eventsub-http";
+import { NgrokAdapter } from "@twurple/eventsub-ngrok";
 
 const app = express();
 const port = 3000;
@@ -22,6 +24,30 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
 let allChats: ChannelDatas[] = [];
+
+//getting the token
+configDotenv();
+const clientId = process.env.CLIENTID;
+const clientSecret = process.env.CLIENTSECRET;
+const eventSecret = process.env.EVENTSECRET;
+
+const authProvider = new AppTokenAuthProvider(clientId, clientSecret);
+const api = new ApiClient({ authProvider });
+
+const eventListener = new EventSubHttpListener({
+  apiClient: api,
+  secret: eventSecret,
+  adapter: new NgrokAdapter(),
+});
+
+// async function tryApiConnect() {
+//   try {
+//     await api.games.getGameByName("Hearthstone");
+//   } catch (error) {
+//     return false;
+//   }
+// }
+// if (!tryApiConnect()) console.log("error connecting to API");
 
 app.get("/", (req, res) => {
   res.send("Express on Vercel");
@@ -46,48 +72,53 @@ const bot = new ChatClient({
   readOnly: true,
 });
 
-//getting the token
-configDotenv();
-
-const clientId = process.env.CLIENTID;
-const clientSecret = process.env.CLIENTSECRET;
-
-const authProvider = new AppTokenAuthProvider(clientId, clientSecret);
-const api = new ApiClient({ authProvider });
-async function logChannelInfo(channelName: string) {
-  const userObject = await api.users.getUserByName(channelName);
+async function getStreamInfos(channel: string) {
+  const userObject = await api.users.getUserByName(channel);
   const channelInfo = await api.channels.getChannelInfoById(userObject);
   const stream = await api.streams.getStreamByUserName(userObject);
-  const badges = await api.chat.getChannelBadges(userObject);
-  console.log("channel info :");
-  console.log(channelInfo.delay);
-  console.log(channelInfo.name);
-  console.log(channelInfo.title);
-  console.log("stream info :");
-  console.log(stream.startDate);
-  console.log(stream.tags);
-  console.log(stream.title);
-  console.log(stream.type);
-  console.log(stream.viewers);
-  console.log("badges :");
-  console.log(badges.length);
-  console.log(
-    badges.reduce((a, b) => {
-      const allVersion = b.versions.reduce((c, d) => {
-        const info = {
-          action: d.clickAction,
-          url: d.clickUrl,
-          descr: d.description,
-          title: d.title,
-        };
-        Object.assign(c, info);
-        return c;
-      }, {});
-      Object.assign(a, allVersion);
-      return a;
-    }, {})
-  );
+
+  const streamInfos: StreamInfo = {
+    id: stream.id,
+    type: stream.type,
+    title: stream.title,
+    startDate: stream.startDate,
+  };
 }
+
+// async function logChannelInfo(channelName: string) {
+//   const userObject = await api.users.getUserByName(channelName);
+//   const channelInfo = await api.channels.getChannelInfoById(userObject);
+//   const stream = await api.streams.getStreamByUserName(userObject);
+//   const badges = await api.chat.getChannelBadges(userObject);
+//   console.log("channel info :");
+//   console.log(channelInfo.delay);
+//   console.log(channelInfo.name);
+//   console.log(channelInfo.title);
+//   console.log("stream info :");
+//   console.log(stream.startDate);
+//   console.log(stream.tags);
+//   console.log(stream.title);
+//   console.log(stream.type);
+//   console.log(stream.viewers);
+//   console.log("badges :");
+//   console.log(badges.length);
+//   console.log(
+//     badges.reduce((a, b) => {
+//       const allVersion = b.versions.reduce((c, d) => {
+//         const info = {
+//           action: d.clickAction,
+//           url: d.clickUrl,
+//           descr: d.description,
+//           title: d.title,
+//         };
+//         Object.assign(c, info);
+//         return c;
+//       }, {});
+//       Object.assign(a, allVersion);
+//       return a;
+//     }, {})
+//   );
+// }
 
 app.post("/connect", async (req, res) => {
   if (!bot) {
@@ -104,8 +135,19 @@ app.post("/connect", async (req, res) => {
   try {
     // Connexion du nouveau bot
     await bot.join(channel);
-    logChannelInfo(channel);
-    console.log(`connecté au chat de ${channel} !`);
+    console.log(`connecté à ${channel} !`);
+    const userObject = await api.users.getUserByName(channel);
+    const stream = await api.streams.getStreamByUserName(userObject);
+    //! Si le stream n'est pas commencé, c'est null, on peut donc vérifier ça
+    console.log({ stream });
+    if (!stream) console.log("pas de stream");
+    else console.log("enregistrement du chat");
+    eventListener.onStreamOnline(userObject, () => {
+      console.log(`stream de ${channel} commencé`);
+    });
+    eventListener.onStreamOffline(userObject, () => {
+      console.log(`stream de ${channel} stoppé`);
+    });
     allChats.push(new ChannelDatas(channel.toLowerCase()));
     res.send("ok");
   } catch (error) {
