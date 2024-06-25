@@ -13,25 +13,31 @@ export class StoredMessage {
   }
 }
 
-export class StreamInfo {
+export class StreamInfos {
   id: string;
   title: string;
   type: string;
-  startDate?: Date;
+  startDate: Date;
+  endDate: Date;
+}
+
+export class StreamData {
+  streamInfos: StreamInfos;
+  chatData: { chatMsg: StoredMessage[]; removedMsg: StoredMessage[] };
+
+  constructor(streamInfos: StreamInfos) {
+    this.streamInfos = streamInfos;
+    this.chatData = { chatMsg: [], removedMsg: [] };
+  }
 }
 
 export class ChannelDatas {
   channel: string;
-  streamInfo: StreamInfo;
-  chatMsg: StoredMessage[];
-  removedMsg: StoredMessage[];
-  banUsers: string[];
+  streamsData: StreamData[];
+  banUsers: { user: string; banDate?: Date }[];
 
-  constructor(channel: string, streamInfos?: StreamInfo) {
+  constructor(channel: string) {
     this.channel = channel;
-    this.streamInfo = streamInfos;
-    this.chatMsg = [];
-    this.removedMsg = [];
     this.banUsers = [];
   }
 }

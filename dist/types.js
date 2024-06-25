@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ChannelDatas = exports.StreamInfo = exports.StoredMessage = void 0;
+exports.ChannelDatas = exports.StreamData = exports.StreamInfos = exports.StoredMessage = void 0;
 class StoredMessage {
     constructor(id, message, date, user) {
         this.id = id;
@@ -10,15 +10,19 @@ class StoredMessage {
     }
 }
 exports.StoredMessage = StoredMessage;
-class StreamInfo {
+class StreamInfos {
 }
-exports.StreamInfo = StreamInfo;
+exports.StreamInfos = StreamInfos;
+class StreamData {
+    constructor(streamInfos) {
+        this.streamInfos = streamInfos;
+        this.chatData = { chatMsg: [], removedMsg: [] };
+    }
+}
+exports.StreamData = StreamData;
 class ChannelDatas {
-    constructor(channel, streamInfos) {
+    constructor(channel) {
         this.channel = channel;
-        this.streamInfo = streamInfos;
-        this.chatMsg = [];
-        this.removedMsg = [];
         this.banUsers = [];
     }
 }
