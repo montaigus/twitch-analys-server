@@ -5,7 +5,13 @@ import { ChatClient } from "@twurple/chat";
 import fs from "fs";
 import path from "path";
 import { tmpdir } from "os";
-import { ChannelDatas, StoredMessage, StreamData, StreamInfos } from "./types";
+import {
+  ChannelDatas,
+  StoredMessage,
+  StreamData,
+  StreamInfos,
+  channelData,
+} from "./types";
 import { AuthProvider, AppTokenAuthProvider } from "@twurple/auth";
 import { ApiClient } from "@twurple/api";
 import { config, configDotenv } from "dotenv";
@@ -23,7 +29,11 @@ app.use(cors());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
-let AllChannels: ChannelDatas[] = [];
+//let AllChannels: ChannelDatas[] = [];
+const channels: channelData[] = [];
+const allChats: StoredMessage[] = [];
+const streamsInfos: StreamInfos[] = [];
+const allRemovedMsg: StoredMessage[] = [];
 
 //getting the token
 configDotenv();
@@ -54,18 +64,19 @@ app.get("/", (req, res) => {
 });
 
 app.get("/allchat", (req, res) => {
-  res.json(AllChannels);
+  res.json(allChats);
 });
 
 app.get("/channels", (req, res) => {
-  const result: string[] = bot.currentChannels;
-  if (!result) {
-    res.json([]);
-  }
-  const channels = result.map((channel) =>
-    channel.substring(0, 1) === "#" ? channel.substring(1) : channel
-  );
-  res.json(channels);
+  // const result: string[] = bot.currentChannels;
+  // if (!result) {
+  //   res.json([]);
+  // }
+  // const channels = result.map((channel) =>
+  //   channel.substring(0, 1) === "#" ? channel.substring(1) : channel
+  // );
+  // res.json(channels);
+  res.json(channels.map((chan) => chan.name));
 });
 
 const bot = new ChatClient({
@@ -74,18 +85,32 @@ const bot = new ChatClient({
 
 async function getStreamInfos(channel: string) {
   const userObject = await api.users.getUserByName(channel);
-  const channelInfo = await api.channels.getChannelInfoById(userObject);
   const stream = await api.streams.getStreamByUserName(userObject);
 
   const streamInfos: StreamInfos = {
     id: stream.id,
     type: stream.type,
     title: stream.title,
+    channel: channel,
     startDate: stream.startDate,
     endDate: null,
   };
 
   return streamInfos;
+}
+
+async function setNewStreamInfos(channel: string) {
+  const streamInfos = await getStreamInfos(channel);
+  //creation de la ligne du stream dans les data
+  streamsInfos.push(streamInfos);
+  //mise a jour du current stream
+  const index = channels.findIndex((chan) => chan.name === channel);
+  if (index === -1) {
+    console.log("problème de chaine");
+    return;
+  } else {
+    channels[index].currentStreamId = streamInfos.id;
+  }
 }
 
 app.post("/connect", async (req, res) => {
@@ -104,27 +129,37 @@ app.post("/connect", async (req, res) => {
     // Connexion du nouveau bot
     await bot.join(channel);
     console.log(`connecté à ${channel} !`);
-    AllChannels.push(new ChannelDatas(channel.toLowerCase()));
+    channels.push(new channelData(channel.toLowerCase()));
     //Objets utilisé par les api
     const userObject = await api.users.getUserByName(channel);
     const stream = await api.streams.getStreamByUserName(userObject);
     console.log({ stream });
+
     //ajouts des listeners pour les stream on/off
     eventListener.onStreamOnline(userObject, async () => {
       console.log(`stream de ${channel} commencé`);
-      const streamInfos = await getStreamInfos(channel);
-      //creation de la ligne du stream dans les data
-      AllChannels.find((chan) => {
-        chan.channel === channel;
-      })!.streamsData.push(new StreamData(streamInfos));
+      setNewStreamInfos(channel);
     });
     eventListener.onStreamOffline(userObject, () => {
       console.log(`stream de ${channel} stoppé`);
-      AllChannels.find((chan) => {
-        chan.channel === channel;
-      })!
-        .streamsData.find((stream) => stream.streamInfos.endDate === null)
-        ?.streamInfos.endDate.setDate(Date.now());
+      const streamIndex = streamsInfos.findIndex(
+        (stream) => stream.endDate === null && stream.channel === channel
+      );
+      if (streamIndex === -1) {
+        console.log("Problème de stream info");
+        return;
+      } else {
+        streamsInfos[streamIndex].endDate = new Date();
+      }
+      const chanIndex = channels.findIndex(
+        (chan) => chan.currentStreamId === channel
+      );
+      if (chanIndex === -1) {
+        console.log("probleme de channel");
+        return;
+      } else {
+        channels[chanIndex].currentStreamId = null;
+      }
     });
 
     // Si le stream n'est pas commencé, on renvoie l'info
@@ -134,8 +169,11 @@ app.post("/connect", async (req, res) => {
       //.send(`pas de stream de la chaine ${channel} en cours`);
     }
     //sinon, process habituel
-    else console.log("enregistrement du chat");
-    res.status(200);
+    else {
+      console.log("enregistrement du chat");
+      setNewStreamInfos(channel);
+      res.status(200);
+    }
     //.send(`connecté au stream de ${channel}`);
   } catch (error) {
     console.error("Erreur lors de la connexion du bot:", error);
@@ -149,20 +187,21 @@ app.post("/disconnect", async (req, res) => {
   const partedChannel: string = req.body.channel;
   bot.part(partedChannel);
 
-  const index = AllChannels.findIndex((chat) => {
-    return chat.channel === partedChannel;
-  });
+  const index = channels.findIndex((chan) => chan.name === partedChannel);
   if (index >= 0) {
-    AllChannels.splice(index);
+    channels.splice(index);
   }
+
+  //!on doit aussi clean les autres collections
   console.log(`Bot déconnecté du canal ${partedChannel}`);
   res.send("ok");
 });
 
 // Route pour générer et télécharger le fichier JSON
 app.get("/download-json", (req, res) => {
+  //!faut tout refaire pour recréer les bonnes données
   // Convertir les données en format JSON
-  const jsonData = JSON.stringify(AllChannels);
+  const jsonData = JSON.stringify(channels);
   // Vérifie si le dossier existe, s'il n'existe pas, le crée
   if (!fs.existsSync(tmpdir())) {
     console.log("Création du dossier temporaire...");
@@ -203,27 +242,40 @@ async function main() {
       `${channel} : Nouveau message de ${user}: ${message}, ${msg}`
     );
 
-    const newMsg = new StoredMessage(msg.id, message, new Date(), user);
+    const newMsg = new StoredMessage(
+      msg.id,
+      message,
+      new Date(),
+      user,
+      channel
+    );
 
     //si il trouve l'objet channel dans AllChannels, il trouve le dernier stream en cours, puis push le nouveau message
     //!si on pouvait le faire par id de stream ce serait mieux
-    const stream = AllChannels.find(
-      (chat) => chat.channel.toLowerCase() === channel.toLowerCase()
-    )?.streamsData.find((stream) => !stream.streamInfos.endDate);
+    const chanIndex = channels.findIndex((chan) => chan.name === channel);
+    if (chanIndex === -1) {
+      console.log("probleme de channel");
+    } else {
+      const streamId = channels[chanIndex].currentStreamId;
+      if (!streamId) console.log("pas de stream en cours pour ce message");
+      else {
+        const streamInfo = streamsInfos.find(
+          (stream) => stream.id === streamId
+        );
+        if (!streamInfo)
+          console.log("pas de stream correspondant, c'est chiant");
 
-    console.log({ stream });
-
-    AllChannels.find(
-      (chat) => chat.channel.toLowerCase() === channel.toLowerCase()
-    )
-      ?.streamsData.find((stream) => !stream.streamInfos.endDate)
-      ?.chatData.chatMsg.push(newMsg);
+        newMsg.streamId = streamId;
+        if (streamInfo)
+          newMsg.upTime =
+            newMsg.date.getMilliseconds() -
+            streamInfo.startDate.getMilliseconds();
+      }
+    }
   });
 
   bot.onBan((channel, user, msg) => {
-    AllChannels.find(
-      (chat) => chat.channel.toLowerCase() === channel.toLowerCase()
-    )?.banUsers.push({ user: user, banDate: new Date() });
+    channels.find((chan) => chan.name == channel).banUsers.push(user);
     console.log(
       "\x1b[33m%s\x1b[0m",
       `Cet utilisateur a été ban : ${user}, pour le message suivant : ${msg}`
@@ -231,31 +283,18 @@ async function main() {
   });
 
   bot.onMessageRemove((channel, messageId, msg) => {
-    let removedMsg = AllChannels.find(
-      (chat) => chat.channel.toLowerCase() === channel.toLowerCase()
-    )
-      ?.streamsData.find((stream) => !stream.streamInfos.endDate)
-      ?.chatData.chatMsg.find((msg) => msg.id === messageId);
+    const removedMsg = allChats.find((message) => message.id === messageId);
+
     if (!removedMsg) {
       console.log("Message non trouvé");
-      removedMsg = new StoredMessage(messageId, "", new Date(), "");
-      return;
+      removedMsg.id = messageId;
+      removedMsg.message = "";
+      (removedMsg.date = new Date()), (removedMsg.user = "");
     }
-    const newRemovedMsg = new StoredMessage(
-      messageId,
-      removedMsg.message || "",
-      new Date(),
-      removedMsg.user
-    );
 
     console.log("\x1b[31m%s\x1b[0m", "message banni " + removedMsg.message);
 
-    //si il trouve l'objet channel dans AllChannels, il push le message banni
-    AllChannels.find(
-      (chat) => chat.channel.toLowerCase() === channel.toLowerCase()
-    )
-      ?.streamsData.find((stream) => !stream.streamInfos.endDate)
-      ?.chatData.removedMsg.push(newRemovedMsg);
+    allRemovedMsg.push(removedMsg);
   });
 }
 main();
