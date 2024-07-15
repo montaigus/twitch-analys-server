@@ -40,6 +40,7 @@ const allChats = [];
 const streamsInfos = [];
 const allRemovedMsg = [];
 const removedMsgIds = [];
+const users = [];
 //getting the token
 (0, dotenv_1.configDotenv)();
 const clientId = process.env.CLIENTID;
@@ -104,6 +105,13 @@ app.post("/connect", (req, res) => __awaiter(void 0, void 0, void 0, function* (
     if (channel === "" || channel.substring(0, 1) === "_") {
         res.status(400).send("Mauvaise chaine");
     }
+    const user = yield api.users.getUserByName(channel);
+    if (!user) {
+        console.log("mauvaise chan");
+        res.send("mauvaise chaine");
+        return;
+    }
+    //!Mettre une vérif de l'existence de la chaine
     try {
         // Connexion du nouveau bot
         yield bot.join(channel);
@@ -173,6 +181,15 @@ function getOrganizedData() {
     const allData = {
         Data: [],
         removedMsg: removedMsgIds,
+        users: users.map((us) => {
+            return {
+                N: us.userName,
+                BI: us.badgeInfo,
+                B: us.badges,
+                UT: us.userType,
+                IM: us.isMod,
+            };
+        }),
     };
     channels.forEach((chan) => {
         const chanData = new types_1.OrganizedInfos(chan.name, chan.banUsers);
@@ -180,10 +197,14 @@ function getOrganizedData() {
         if (chanStreams) {
             chanStreams.forEach((stream) => {
                 const streamData = new types_1.StreamData(stream);
-                console.log({ allChats });
-                const allMsg = allChats.filter((msg) => msg.streamId === stream.id);
-                const readableMsg = allMsg.map((msg) => new types_1.ReadableMsgData(msg));
-                streamData.chatData.chatMsg = readableMsg;
+                const allMsg = allChats
+                    .filter((msg) => msg.streamId === stream.id)
+                    .map((msg) => new types_1.ReadableMsgData(msg));
+                streamData.chatData.chatMsg = allMsg;
+                const readableRemovedMsg = allRemovedMsg
+                    .filter((msg) => msg.streamId === stream.id)
+                    .map((msg) => new types_1.ReadableMsgData(msg));
+                streamData.chatData.removedMsg = readableRemovedMsg;
                 chanData.allStreams.push(streamData);
             });
         }
@@ -230,7 +251,9 @@ function main() {
         yield bot.connect();
         console.log("Bot connecté !");
         bot.onMessage((channel, user, message, msg) => {
-            console.log("\x1b[36m%s\x1b[0m", `${channel} : Nouveau message de ${user}: ${message}, date ${msg.date}`);
+            if (!users.find((us) => us === msg.userInfo))
+                users.push(msg.userInfo);
+            console.log("\x1b[36m%s\x1b[0m", `${channel} : Nouveau message de ${user}: ${message}`);
             const newMsg = new types_1.StoredMessage(msg.id, message, msg.date, user, channel);
             const chanIndex = channels.findIndex((chan) => chan.name === channel);
             if (chanIndex === -1) {
@@ -265,6 +288,8 @@ function main() {
             //   removedMsg.message = "";
             //   (removedMsg.date = new Date()), (removedMsg.user = "");
             // }
+            if (removedMsg)
+                allRemovedMsg.push(removedMsg);
             console.log({ messageId });
             removedMsgIds.push(messageId);
             //console.log("\x1b[31m%s\x1b[0m", "message banni " + removedMsg.message);

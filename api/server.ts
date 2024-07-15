@@ -1,7 +1,7 @@
 import express from "express";
 import cors from "cors";
 import bodyParser from "body-parser";
-import { ChatClient } from "@twurple/chat";
+import { ChatClient, ChatUser } from "@twurple/chat";
 import fs from "fs";
 import path from "path";
 import { tmpdir } from "os";
@@ -36,6 +36,7 @@ const allChats: StoredMessage[] = [];
 const streamsInfos: StreamInfos[] = [];
 const allRemovedMsg: StoredMessage[] = [];
 const removedMsgIds: string[] = [];
+const users: ChatUser[] = [];
 
 //getting the token
 configDotenv();
@@ -110,6 +111,14 @@ app.post("/connect", async (req, res) => {
     res.status(400).send("Mauvaise chaine");
   }
 
+  const user = await api.users.getUserByName(channel);
+  if (!user) {
+    console.log("mauvaise chan");
+    res.send("mauvaise chaine");
+    return;
+  }
+  //!Mettre une vérif de l'existence de la chaine
+
   try {
     // Connexion du nouveau bot
     await bot.join(channel);
@@ -183,9 +192,22 @@ app.post("/disconnect", async (req, res) => {
 });
 
 function getOrganizedData() {
-  const allData: { Data: OrganizedInfos[]; removedMsg: string[] } = {
+  const allData: {
+    Data: OrganizedInfos[];
+    removedMsg: string[];
+    users: any[];
+  } = {
     Data: [],
     removedMsg: removedMsgIds,
+    users: users.map((us) => {
+      return {
+        N: us.userName,
+        BI: us.badgeInfo,
+        B: us.badges,
+        UT: us.userType,
+        IM: us.isMod,
+      };
+    }),
   };
 
   channels.forEach((chan) => {
@@ -196,10 +218,15 @@ function getOrganizedData() {
     if (chanStreams) {
       chanStreams.forEach((stream) => {
         const streamData = new StreamData(stream);
-        console.log({ allChats });
-        const allMsg = allChats.filter((msg) => msg.streamId === stream.id);
-        const readableMsg = allMsg.map((msg) => new ReadableMsgData(msg));
-        streamData.chatData.chatMsg = readableMsg;
+        const allMsg = allChats
+          .filter((msg) => msg.streamId === stream.id)
+          .map((msg) => new ReadableMsgData(msg));
+        streamData.chatData.chatMsg = allMsg;
+
+        const readableRemovedMsg = allRemovedMsg
+          .filter((msg) => msg.streamId === stream.id)
+          .map((msg) => new ReadableMsgData(msg));
+        streamData.chatData.removedMsg = readableRemovedMsg;
         chanData.allStreams.push(streamData);
       });
     }
@@ -253,9 +280,10 @@ async function main() {
   console.log("Bot connecté !");
 
   bot.onMessage((channel, user, message, msg) => {
+    if (!users.find((us) => us === msg.userInfo)) users.push(msg.userInfo);
     console.log(
       "\x1b[36m%s\x1b[0m",
-      `${channel} : Nouveau message de ${user}: ${message}, date ${msg.date}`
+      `${channel} : Nouveau message de ${user}: ${message}`
     );
 
     const newMsg = new StoredMessage(msg.id, message, msg.date, user, channel);
@@ -299,6 +327,8 @@ async function main() {
     //   removedMsg.message = "";
     //   (removedMsg.date = new Date()), (removedMsg.user = "");
     // }
+
+    if (removedMsg) allRemovedMsg.push(removedMsg);
 
     console.log({ messageId });
 

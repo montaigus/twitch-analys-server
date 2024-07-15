@@ -63,12 +63,12 @@ class ReadableStreamInfos {
 
 export class StreamData {
   streamInfos: ReadableStreamInfos;
-  chatData: { chatMsg: ReadableMsgData[]; removedMsg: string[] };
+  chatData: { chatMsg: ReadableMsgData[]; removedMsg: ReadableMsgData[] };
 
   constructor(
     streamInfos: StreamInfos,
     chatMsg?: ReadableMsgData[],
-    removedMsg?: string[]
+    removedMsg?: ReadableMsgData[]
   ) {
     this.streamInfos = new ReadableStreamInfos(streamInfos);
     this.chatData = {
