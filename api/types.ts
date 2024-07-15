@@ -22,7 +22,9 @@ export class StoredMessage {
     this.user = user;
     this.channel = channel;
     this.streamId = streamId ? streamId : null;
-    this.upTime = streamStart.getMilliseconds() - date.getMilliseconds();
+    streamStart
+      ? (this.upTime = streamStart.getMilliseconds() - date.getMilliseconds())
+      : (this.upTime = 0);
   }
 }
 
@@ -49,21 +51,42 @@ export class channelData {
 
 export class StreamData {
   streamInfos: StreamInfos;
-  chatData: { chatMsg: StoredMessage[]; removedMsg: StoredMessage[] };
+  chatData: { chatMsg: StoredMessage[]; removedMsg: string[] };
 
-  constructor(streamInfos: StreamInfos) {
+  constructor(
+    streamInfos: StreamInfos,
+    chatMsg?: StoredMessage[],
+    removedMsg?: string[]
+  ) {
     this.streamInfos = streamInfos;
-    this.chatData = { chatMsg: [], removedMsg: [] };
+    this.chatData = {
+      chatMsg: chatMsg ? chatMsg : [],
+      removedMsg: removedMsg ? removedMsg : [],
+    };
   }
 }
 
-export class ChannelDatas {
+export class OrganizedInfos {
   channel: string;
-  streamsData: StreamData[];
-  banUsers: { user: string; banDate?: Date }[];
+  banUsers: string[];
+  wildMsgs: StoredMessage[];
+  allStreams: StreamData[];
 
-  constructor(channel: string) {
+  constructor(channel: string, banUsers: string[]) {
     this.channel = channel;
-    this.banUsers = [];
+    this.banUsers = banUsers;
+    this.wildMsgs = [];
+    this.allStreams = [];
   }
 }
+
+// export class ChannelDatas {
+//   channel: string;
+//   streamsData: StreamData[];
+//   banUsers: { user: string; banDate?: Date }[];
+
+//   constructor(channel: string) {
+//     this.channel = channel;
+//     this.banUsers = [];
+//   }
+//}

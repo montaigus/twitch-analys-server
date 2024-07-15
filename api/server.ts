@@ -6,7 +6,7 @@ import fs from "fs";
 import path from "path";
 import { tmpdir } from "os";
 import {
-  ChannelDatas,
+  OrganizedInfos,
   StoredMessage,
   StreamData,
   StreamInfos,
@@ -34,6 +34,7 @@ const channels: channelData[] = [];
 const allChats: StoredMessage[] = [];
 const streamsInfos: StreamInfos[] = [];
 const allRemovedMsg: StoredMessage[] = [];
+const removedMsgIds: string[] = [];
 
 //getting the token
 configDotenv();
@@ -49,15 +50,6 @@ const eventListener = new EventSubHttpListener({
   secret: eventSecret,
   adapter: new NgrokAdapter(),
 });
-
-// async function tryApiConnect() {
-//   try {
-//     await api.games.getGameByName("Hearthstone");
-//   } catch (error) {
-//     return false;
-//   }
-// }
-// if (!tryApiConnect()) console.log("error connecting to API");
 
 app.get("/", (req, res) => {
   res.send("Express on Vercel");
@@ -197,11 +189,42 @@ app.post("/disconnect", async (req, res) => {
   res.send("ok");
 });
 
+function getOrganizedData() {
+  const allData: { Data: OrganizedInfos[]; removedMsg: string[] } = {
+    Data: [],
+    removedMsg: removedMsgIds,
+  };
+
+  channels.forEach((chan) => {
+    const chanData = new OrganizedInfos(chan.name, chan.banUsers);
+    const chanStreams = streamsInfos.filter(
+      (stream) => stream.channel === chan.name
+    );
+    if (chanStreams) {
+      chanStreams.forEach((stream) => {
+        const streamData = new StreamData(stream);
+        console.log({ allChats });
+        const allMsg = allChats.filter((msg) => msg.streamId === stream.id);
+        console.log({ allMsg });
+        streamData.chatData.chatMsg = allMsg;
+        chanData.allStreams.push(streamData);
+      });
+    }
+    const allwildMsg = allChats.filter(
+      (msg) => msg.streamId === null || undefined
+    );
+    chanData.wildMsgs = allwildMsg;
+    allData.Data.push(chanData);
+  });
+  return allData;
+}
+
 // Route pour générer et télécharger le fichier JSON
 app.get("/download-json", (req, res) => {
   //!faut tout refaire pour recréer les bonnes données
+
   // Convertir les données en format JSON
-  const jsonData = JSON.stringify(channels);
+  const jsonData = JSON.stringify(getOrganizedData());
   // Vérifie si le dossier existe, s'il n'existe pas, le crée
   if (!fs.existsSync(tmpdir())) {
     console.log("Création du dossier temporaire...");
@@ -239,7 +262,7 @@ async function main() {
   bot.onMessage((channel, user, message, msg) => {
     console.log(
       "\x1b[36m%s\x1b[0m",
-      `${channel} : Nouveau message de ${user}: ${message}, ${msg}`
+      `${channel} : Nouveau message de ${user}: ${message},${msg.id}`
     );
 
     const newMsg = new StoredMessage(
@@ -251,7 +274,7 @@ async function main() {
     );
 
     //si il trouve l'objet channel dans AllChannels, il trouve le dernier stream en cours, puis push le nouveau message
-    //!si on pouvait le faire par id de stream ce serait mieux
+
     const chanIndex = channels.findIndex((chan) => chan.name === channel);
     if (chanIndex === -1) {
       console.log("probleme de channel");
@@ -268,10 +291,10 @@ async function main() {
         newMsg.streamId = streamId;
         if (streamInfo)
           newMsg.upTime =
-            newMsg.date.getMilliseconds() -
-            streamInfo.startDate.getMilliseconds();
+            newMsg.date.getTime() - streamInfo.startDate.getTime();
       }
     }
+    allChats.push(newMsg);
   });
 
   bot.onBan((channel, user, msg) => {
@@ -284,18 +307,23 @@ async function main() {
 
   bot.onMessageRemove((channel, messageId, msg) => {
     const removedMsg = allChats.find((message) => message.id === messageId);
+    console.log({ removedMsg });
+    // if (!removedMsg) {
+    //   console.log("Message non trouvé");
+    //   removedMsg.id = messageId;
+    //   removedMsg.message = "";
+    //   (removedMsg.date = new Date()), (removedMsg.user = "");
+    // }
 
-    if (!removedMsg) {
-      console.log("Message non trouvé");
-      removedMsg.id = messageId;
-      removedMsg.message = "";
-      (removedMsg.date = new Date()), (removedMsg.user = "");
-    }
+    console.log({ messageId });
 
-    console.log("\x1b[31m%s\x1b[0m", "message banni " + removedMsg.message);
+    removedMsgIds.push(messageId);
 
-    allRemovedMsg.push(removedMsg);
+    //console.log("\x1b[31m%s\x1b[0m", "message banni " + removedMsg.message);
+
+    //allRemovedMsg.push(removedMsg);
   });
 }
+
 main();
 //module.exports = app;

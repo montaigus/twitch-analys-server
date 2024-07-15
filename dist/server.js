@@ -39,6 +39,7 @@ const channels = [];
 const allChats = [];
 const streamsInfos = [];
 const allRemovedMsg = [];
+const removedMsgIds = [];
 //getting the token
 (0, dotenv_1.configDotenv)();
 const clientId = process.env.CLIENTID;
@@ -51,14 +52,6 @@ const eventListener = new eventsub_http_1.EventSubHttpListener({
     secret: eventSecret,
     adapter: new eventsub_ngrok_1.NgrokAdapter(),
 });
-// async function tryApiConnect() {
-//   try {
-//     await api.games.getGameByName("Hearthstone");
-//   } catch (error) {
-//     return false;
-//   }
-// }
-// if (!tryApiConnect()) console.log("error connecting to API");
 app.get("/", (req, res) => {
     res.send("Express on Vercel");
 });
@@ -184,11 +177,35 @@ app.post("/disconnect", (req, res) => __awaiter(void 0, void 0, void 0, function
     console.log(`Bot déconnecté du canal ${partedChannel}`);
     res.send("ok");
 }));
+function getOrganizedData() {
+    const allData = {
+        Data: [],
+        removedMsg: removedMsgIds,
+    };
+    channels.forEach((chan) => {
+        const chanData = new types_1.OrganizedInfos(chan.name, chan.banUsers);
+        const chanStreams = streamsInfos.filter((stream) => stream.channel === chan.name);
+        if (chanStreams) {
+            chanStreams.forEach((stream) => {
+                const streamData = new types_1.StreamData(stream);
+                console.log({ allChats });
+                const allMsg = allChats.filter((msg) => msg.streamId === stream.id);
+                console.log({ allMsg });
+                streamData.chatData.chatMsg = allMsg;
+                chanData.allStreams.push(streamData);
+            });
+        }
+        const allwildMsg = allChats.filter((msg) => msg.streamId === null || undefined);
+        chanData.wildMsgs = allwildMsg;
+        allData.Data.push(chanData);
+    });
+    return allData;
+}
 // Route pour générer et télécharger le fichier JSON
 app.get("/download-json", (req, res) => {
     //!faut tout refaire pour recréer les bonnes données
     // Convertir les données en format JSON
-    const jsonData = JSON.stringify(channels);
+    const jsonData = JSON.stringify(getOrganizedData());
     // Vérifie si le dossier existe, s'il n'existe pas, le crée
     if (!fs_1.default.existsSync((0, os_1.tmpdir)())) {
         console.log("Création du dossier temporaire...");
@@ -221,10 +238,9 @@ function main() {
         console.log("Bot connecté !");
         //quand un message arrive, on l'enregistre dans le stream correspondant, cad celui qui n'est pas terminé
         bot.onMessage((channel, user, message, msg) => {
-            console.log("\x1b[36m%s\x1b[0m", `${channel} : Nouveau message de ${user}: ${message}, ${msg}`);
+            console.log("\x1b[36m%s\x1b[0m", `${channel} : Nouveau message de ${user}: ${message},${msg.id}`);
             const newMsg = new types_1.StoredMessage(msg.id, message, new Date(), user, channel);
             //si il trouve l'objet channel dans AllChannels, il trouve le dernier stream en cours, puis push le nouveau message
-            //!si on pouvait le faire par id de stream ce serait mieux
             const chanIndex = channels.findIndex((chan) => chan.name === channel);
             if (chanIndex === -1) {
                 console.log("probleme de channel");
@@ -240,10 +256,10 @@ function main() {
                     newMsg.streamId = streamId;
                     if (streamInfo)
                         newMsg.upTime =
-                            newMsg.date.getMilliseconds() -
-                                streamInfo.startDate.getMilliseconds();
+                            newMsg.date.getTime() - streamInfo.startDate.getTime();
                 }
             }
+            allChats.push(newMsg);
         });
         bot.onBan((channel, user, msg) => {
             channels.find((chan) => chan.name == channel).banUsers.push(user);
@@ -251,14 +267,17 @@ function main() {
         });
         bot.onMessageRemove((channel, messageId, msg) => {
             const removedMsg = allChats.find((message) => message.id === messageId);
-            if (!removedMsg) {
-                console.log("Message non trouvé");
-                removedMsg.id = messageId;
-                removedMsg.message = "";
-                (removedMsg.date = new Date()), (removedMsg.user = "");
-            }
-            console.log("\x1b[31m%s\x1b[0m", "message banni " + removedMsg.message);
-            allRemovedMsg.push(removedMsg);
+            console.log({ removedMsg });
+            // if (!removedMsg) {
+            //   console.log("Message non trouvé");
+            //   removedMsg.id = messageId;
+            //   removedMsg.message = "";
+            //   (removedMsg.date = new Date()), (removedMsg.user = "");
+            // }
+            console.log({ messageId });
+            removedMsgIds.push(messageId);
+            //console.log("\x1b[31m%s\x1b[0m", "message banni " + removedMsg.message);
+            //allRemovedMsg.push(removedMsg);
         });
     });
 }
