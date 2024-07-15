@@ -7,6 +7,7 @@ import path from "path";
 import { tmpdir } from "os";
 import {
   OrganizedInfos,
+  ReadableMsgData,
   StoredMessage,
   StreamData,
   StreamInfos,
@@ -60,14 +61,6 @@ app.get("/allchat", (req, res) => {
 });
 
 app.get("/channels", (req, res) => {
-  // const result: string[] = bot.currentChannels;
-  // if (!result) {
-  //   res.json([]);
-  // }
-  // const channels = result.map((channel) =>
-  //   channel.substring(0, 1) === "#" ? channel.substring(1) : channel
-  // );
-  // res.json(channels);
   res.json(channels.map((chan) => chan.name));
 });
 
@@ -157,14 +150,14 @@ app.post("/connect", async (req, res) => {
     // Si le stream n'est pas commencé, on renvoie l'info
     if (!stream) {
       console.log("pas de stream");
-      res.status(200);
+      res.status(201).send(channel);
       //.send(`pas de stream de la chaine ${channel} en cours`);
     }
     //sinon, process habituel
     else {
       console.log("enregistrement du chat");
       setNewStreamInfos(channel);
-      res.status(200);
+      res.status(200).send(channel);
     }
     //.send(`connecté au stream de ${channel}`);
   } catch (error) {
@@ -205,15 +198,16 @@ function getOrganizedData() {
         const streamData = new StreamData(stream);
         console.log({ allChats });
         const allMsg = allChats.filter((msg) => msg.streamId === stream.id);
-        console.log({ allMsg });
-        streamData.chatData.chatMsg = allMsg;
+        const readableMsg = allMsg.map((msg) => new ReadableMsgData(msg));
+        streamData.chatData.chatMsg = readableMsg;
         chanData.allStreams.push(streamData);
       });
     }
     const allwildMsg = allChats.filter(
       (msg) => msg.streamId === null || undefined
     );
-    chanData.wildMsgs = allwildMsg;
+    const allReadableWild = allwildMsg.map((msg) => new ReadableMsgData(msg));
+    chanData.wildMsgs = allReadableWild;
     allData.Data.push(chanData);
   });
   return allData;
@@ -258,22 +252,13 @@ async function main() {
   await bot.connect();
   console.log("Bot connecté !");
 
-  //quand un message arrive, on l'enregistre dans le stream correspondant, cad celui qui n'est pas terminé
   bot.onMessage((channel, user, message, msg) => {
     console.log(
       "\x1b[36m%s\x1b[0m",
-      `${channel} : Nouveau message de ${user}: ${message},${msg.id}`
+      `${channel} : Nouveau message de ${user}: ${message}, date ${msg.date}`
     );
 
-    const newMsg = new StoredMessage(
-      msg.id,
-      message,
-      new Date(),
-      user,
-      channel
-    );
-
-    //si il trouve l'objet channel dans AllChannels, il trouve le dernier stream en cours, puis push le nouveau message
+    const newMsg = new StoredMessage(msg.id, message, msg.date, user, channel);
 
     const chanIndex = channels.findIndex((chan) => chan.name === channel);
     if (chanIndex === -1) {

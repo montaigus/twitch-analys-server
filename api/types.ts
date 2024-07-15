@@ -49,16 +49,28 @@ export class channelData {
   }
 }
 
+class ReadableStreamInfos {
+  title: string;
+  type: string;
+  startDate: string;
+
+  constructor(data: StreamInfos) {
+    this.title = data.title;
+    this.type = data.type;
+    this.startDate = data.startDate.toString();
+  }
+}
+
 export class StreamData {
-  streamInfos: StreamInfos;
-  chatData: { chatMsg: StoredMessage[]; removedMsg: string[] };
+  streamInfos: ReadableStreamInfos;
+  chatData: { chatMsg: ReadableMsgData[]; removedMsg: string[] };
 
   constructor(
     streamInfos: StreamInfos,
-    chatMsg?: StoredMessage[],
+    chatMsg?: ReadableMsgData[],
     removedMsg?: string[]
   ) {
-    this.streamInfos = streamInfos;
+    this.streamInfos = new ReadableStreamInfos(streamInfos);
     this.chatData = {
       chatMsg: chatMsg ? chatMsg : [],
       removedMsg: removedMsg ? removedMsg : [],
@@ -66,10 +78,32 @@ export class StreamData {
   }
 }
 
+function millisToMinutesAndSeconds(millis: number) {
+  var minutes = Math.floor(millis / 60000);
+  var seconds = (millis % 60000) / 1000;
+  return seconds == 60
+    ? minutes + 1 + ":00"
+    : minutes + ":" + (seconds < 10 ? "0" : "") + seconds;
+}
+
+export class ReadableMsgData {
+  message: string;
+  date: string;
+  user: string;
+  upTime?: string;
+
+  constructor(data: StoredMessage) {
+    this.message = data.message;
+    this.date = data.date.toLocaleTimeString();
+    this.user = data.user;
+    this.upTime = data.upTime ? millisToMinutesAndSeconds(data.upTime) : "0";
+  }
+}
+
 export class OrganizedInfos {
   channel: string;
   banUsers: string[];
-  wildMsgs: StoredMessage[];
+  wildMsgs: ReadableMsgData[];
   allStreams: StreamData[];
 
   constructor(channel: string, banUsers: string[]) {
